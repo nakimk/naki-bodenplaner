@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ComponentType, type RefAttributes } from 'react';
+import { useCallback, useRef, useState, type ComponentType, type RefAttributes } from 'react';
 import { Alert, Linking, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -16,8 +16,11 @@ const NakiWebView = WebView as unknown as ComponentType<WebViewProps & RefAttrib
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// Ursprung für localStorage («Meine Böden» bleiben gespeichert)
-const BASE_URL = 'https://app.nakigmbh.ch/';
+// Live-Version (GitHub Pages): Änderungen erscheinen ohne Store-Update.
+// Ohne Internet wird die eingebaute Kopie (src/webapp.ts) mit derselben Herkunft geladen,
+// damit «Meine Böden» (localStorage) in beiden Fällen dieselben sind.
+const LIVE_URL = 'https://nakimk.github.io/naki-bodenplaner/app/';
+const LIVE_ORIGIN = 'https://nakimk.github.io/';
 
 type BridgeMessage =
   | { type: 'pick' }
@@ -27,6 +30,8 @@ type BridgeMessage =
 
 export default function App() {
   const web = useRef<WebView<object>>(null);
+  const [offline, setOffline] = useState(false);
+  const goOffline = useCallback(() => setOffline(true), []);
 
   const toast = useCallback((msg: string) => {
     web.current?.injectJavaScript(`try{toast(${JSON.stringify(msg)})}catch(e){};true;`);
@@ -116,7 +121,7 @@ export default function App() {
   // Externe Links (nakigmbh.ch, mailto:, tel:) im Browser bzw. in der passenden App öffnen
   const onShouldStart = useCallback((req: ShouldStartLoadRequest) => {
     const url = req.url;
-    if (url === BASE_URL || url.startsWith('about:') || url.startsWith('data:') || url.startsWith('blob:')) return true;
+    if (url.startsWith(LIVE_ORIGIN) || url.startsWith('about:') || url.startsWith('data:') || url.startsWith('blob:')) return true;
     if (/^(https?:|mailto:|tel:)/.test(url)) {
       void Linking.openURL(url).catch(() => {});
       return false;
@@ -131,7 +136,14 @@ export default function App() {
         <NakiWebView
           ref={web}
           style={styles.web}
-          source={{ html, baseUrl: BASE_URL }}
+          key={offline ? 'offline' : 'live'}
+          source={offline ? { html, baseUrl: LIVE_URL } : { uri: LIVE_URL }}
+          onError={goOffline}
+          onHttpError={(e) => {
+            if (e.nativeEvent.statusCode >= 400) goOffline();
+          }}
+          cacheEnabled
+          cacheMode="LOAD_DEFAULT"
           originWhitelist={['*']}
           javaScriptEnabled
           domStorageEnabled

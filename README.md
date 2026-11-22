@@ -6,6 +6,17 @@ Expo-App (React Native), die den Naki Bodenplaner als native App für iPhone/iPa
 - **Sprache:** Deutsch (Schweiz)
 - **Expo SDK:** 58
 
+## Live-Updates (ohne App-Store-Update)
+
+Die App lädt die Bodenplaner-Oberfläche live von
+`https://nakimk.github.io/naki-bodenplaner/app/` (Ordner `docs/app/` in diesem Repo).
+Änderungen an `web/index.html` → `npm run build:html` → committen & pushen →
+nach ca. 1–10 Minuten haben alle Nutzer die neue Version. Kein Store-Update nötig.
+Ohne Internet startet die eingebaute Kopie (Stand des letzten App-Builds).
+
+Ein neuer Store-Build ist nur nötig bei Änderungen an `App.tsx`, `app.json`,
+nativen Paketen, Icon oder App-Name.
+
 ## Aufbau
 
 | Datei | Inhalt |
