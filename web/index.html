@@ -722,7 +722,12 @@ function selectProduct(p,silent){
   state.product=p;updSel();
   if(texCache.has(p.id)){uploadFloor(texCache.get(p.id));render();return Promise.resolve()}
   $('#busy').classList.add('on');
-  return new Promise(res=>setTimeout(()=>{const t=genTexture(p,CONFIG.texSize);texCache.set(p.id,t);uploadFloor(t);$('#busy').classList.remove('on');render();res()},30));
+  const proc=res=>setTimeout(()=>{const t=genTexture(p,CONFIG.texSize);texCache.set(p.id,t);if(state.product===p){uploadFloor(t);render()}$('#busy').classList.remove('on');res()},30);
+  if(!p.nr)return new Promise(proc);
+  // echte Holztextur aus FARO-Produktfoto
+  return new Promise(res=>{const im=new Image();im.decoding='async';
+    im.onload=()=>{texCache.set(p.id,im);if(state.product===p){uploadFloor(im);render()}$('#busy').classList.remove('on');res()};
+    im.onerror=()=>proc(res);im.src='t/'+p.nr+'.jpg?v=1'});
 }
 
 /* ============ Anpassen ============ */
@@ -809,7 +814,7 @@ $('#copyShare').onclick=()=>copy($('#shareText').textContent);
 /* ============ Start ============ */
 if(initGL()){buildHandles();buildChips();buildStrip();updSel();updCount();setAngle(0);
   // Texturen vorladen, damit der erste Boden sofort erscheint
-  setTimeout(()=>{if(!texCache.has(CATALOG[0].id)){const t=genTexture(CATALOG[0],CONFIG.texSize);texCache.set(CATALOG[0].id,t)}},300);
+  
 }
 </script>
 </body>
