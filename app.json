@@ -62,6 +62,12 @@
           "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "owner": "natmirafizi",
+    "extra": {
+      "eas": {
+        "projectId": "67c9edea-f974-40e2-a833-9e4f421483a4"
+      }
+    }
   }
 }
