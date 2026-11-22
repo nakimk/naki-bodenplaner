@@ -10,7 +10,7 @@
     "backgroundColor": "#f5f1ea",
     "description": "Traumboden virtuell verlegen: Parkett, Vinyl und Kork direkt im Foto deines Raums ausprobieren.",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "ch.nakigmbh.bodenplaner",
       "buildNumber": "1",
       "infoPlist": {
