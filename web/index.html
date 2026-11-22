@@ -75,6 +75,9 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .chip.on{background:var(--ink);color:#fff}
 .strip{display:flex;gap:10px;overflow-x:auto;padding:2px 14px 4px;scroll-snap-type:x proximity;scrollbar-width:none}
 .sw{flex:none;width:88px;scroll-snap-align:start;text-align:center}
+.sw img{width:88px;height:88px;object-fit:cover;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12);background:#eee3d6}
+.sw.on img{border-color:var(--accent-2)}
+.photo-big{width:100%;border-radius:14px;display:block;max-height:62vh;object-fit:contain;background:#f3ece3}
 .sw canvas{width:88px;height:88px;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .sw.on canvas{border-color:var(--accent-2);box-shadow:0 0 0 2px #fff inset}
 .sw em{display:block;font-style:normal;font-size:10.5px;color:#9a7b5c;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -230,6 +233,12 @@ input[type=range]{width:100%;accent-color:var(--accent-2)}
   <div class="acts"><button class="btn sec" id="copySum">Kopieren</button><a class="btn pri" id="mailLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">✉ E-Mail öffnen</a></div>
 </div></div>
 
+<div class="modal" id="mPhoto"><div class="panel">
+  <div class="grab"></div><h3 id="phTitle"></h3>
+  <img class="photo-big" id="phImg" alt="">
+  <p class="note" id="phLine"></p>
+  <div class="acts"><button class="btn" id="phCopy">Art.-Nr. kopieren</button><button class="btn pri" data-close>Schliessen</button></div>
+</div></div>
 <div class="modal" id="mShare"><div class="panel">
   <div class="grab"></div><h3>Vorschau teilen</h3>
   <img class="share-img" id="shareImg" alt="">
@@ -699,13 +708,15 @@ function buildStrip(){
   const el=$('#strip');el.innerHTML='';
   CATALOG.filter(p=>inCat(p,state.cat)).forEach((p,i)=>{
     const b=document.createElement('button');b.className='sw'+(p.id===state.product.id?' on':'');b.dataset.id=p.id;
-    const cv=document.createElement('canvas');cv.width=cv.height=176;b.appendChild(cv);
+    const cv=document.createElement('canvas');cv.width=cv.height=176;
+    if(p.nr){const im=new Image();im.alt='';im.loading='lazy';im.decoding='async';im.src='p/'+p.nr+'.jpg';im.onerror=()=>{im.replaceWith(cv);cv.getContext('2d').drawImage(swatch(p),0,0)};b.appendChild(im);cv._real=true}else b.appendChild(cv);
     const s=document.createElement('span');s.textContent=p.name;b.appendChild(s);if(p.nr){const n=document.createElement('em');n.textContent='Art. '+p.nr;b.appendChild(n)}
-    b.onclick=()=>selectProduct(p);el.appendChild(b);
-    setTimeout(()=>cv.getContext('2d').drawImage(swatch(p),0,0),20+i*15);
+    b.onclick=()=>{if(p.id===state.product.id)openPhoto(p);else selectProduct(p)};el.appendChild(b);
+    if(!cv._real)setTimeout(()=>cv.getContext('2d').drawImage(swatch(p),0,0),20+i*15);
   });
 }
-function updSel(){const P=state.product;$('#selName').textContent=P.name;const L=$('#selLine');L.innerHTML='';if(P.nr){const n=document.createElement('span');n.className='nr';n.textContent='Art.-Nr. '+P.nr+' ⧉';n.onclick=e=>{e.stopPropagation();copy(P.nr)};L.append(n,' ')}L.append(P.line);$$('.sw').forEach(b=>b.classList.toggle('on',b.dataset.id===P.id))}
+function openPhoto(P){if(!P.nr)return;$('#phTitle').textContent=P.name;$('#phImg').src='p/l/'+P.nr+'.jpg';$('#phImg').onerror=()=>{$('#phImg').src='p/'+P.nr+'.jpg'};$('#phLine').textContent='Art.-Nr. '+P.nr+' · '+P.line+' · Foto: Kuratle & Jaecker / FARO';$('#phCopy').onclick=()=>copy(P.nr);openModal('#mPhoto')}
+function updSel(){const P=state.product;$('#selName').textContent=P.name;const L=$('#selLine');L.innerHTML='';if(P.nr){const n=document.createElement('span');n.className='nr';n.textContent='Art.-Nr. '+P.nr+' ⧉';n.onclick=e=>{e.stopPropagation();copy(P.nr)};L.append(n,' ')}L.append(P.line);$('#selName').onclick=()=>openPhoto(P);$('#selName').style.cursor=P.nr?'pointer':'';$$('.sw').forEach(b=>b.classList.toggle('on',b.dataset.id===P.id))}
 function ensureFloor(){return selectProduct(state.product,true)}
 function selectProduct(p,silent){
   state.product=p;updSel();
