@@ -77,11 +77,13 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .sw{flex:none;width:88px;scroll-snap-align:start;text-align:center}
 .sw canvas{width:88px;height:88px;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .sw.on canvas{border-color:var(--accent-2);box-shadow:0 0 0 2px #fff inset}
+.sw em{display:block;font-style:normal;font-size:10.5px;color:#9a7b5c;margin-top:2px;font-variant-numeric:tabular-nums}
+.nr{display:inline-block;margin-right:4px;padding:1px 7px;border-radius:9px;background:#f1e6d8;color:#7a5634;font-size:11.5px;font-weight:600;cursor:pointer;vertical-align:1px}
 .sw span{display:block;font-size:11.5px;line-height:1.2;margin-top:5px;color:#4b4036;font-weight:500}
 .selrow{display:flex;align-items:center;gap:10px;padding:10px 14px 0}
 .selrow .nm{flex:1;min-width:0}
 .selrow .nm b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.selrow .nm small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.selrow .nm small{display:block;margin-top:3px;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .btn{border-radius:12px;padding:11px 14px;font-weight:600;font-size:14px;white-space:nowrap}
 .btn.pri{background:var(--accent-2);color:#fff}
 .btn.sec{background:#f1ebe2;color:var(--ink)}
@@ -239,7 +241,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2)}
 <div class="toast" id="toast"></div>
 <script>
 'use strict';
-const CONFIG={email:'info@nakigmbh.ch',website:'https://nakigmbh.ch',texSize:1024};
+const CONFIG={email:'info@nakigmbh.ch',website:'https://nakigmbh.ch',texSize:(Math.min(screen.width,screen.height)*(devicePixelRatio||1)>900?2048:1536)};
 const RN=window.ReactNativeWebView||null;
 function rnPost(o){if(RN)RN.postMessage(JSON.stringify(o))}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -263,12 +265,12 @@ const CATALOG = [{"id": "kj132677","nr": "132677","name": "Davos Eiche Natur","c
 /* ---------- Texturgenerierung ---------- */
 function periodOf(p){return p.pattern==='herring' ? 2*p.n*p.w : p.P}
 
-function genTexture(p, size){
-  const P = periodOf(p), px = P/size;           // Meter pro Pixel
+function genTexture(p, size, span){
+  const P = periodOf(p), px = (span||P)/size;           // Meter pro Pixel
   const cv=document.createElement('canvas');cv.width=cv.height=size;
   const ctx=cv.getContext('2d');const img=ctx.createImageData(size,size);const D=img.data;
   const seedBase = [...p.id].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7);
-  const gap = Math.max(0.0012, px*0.9);
+  const gap = Math.max(0.0011, px*0.9);
   // Vorab: Plankenreihen-Versatz
   let rows=null;
   if(p.pattern==='plank'){
@@ -287,46 +289,66 @@ function genTexture(p, size){
   const [cr,cg,cb]=p.color;
 
   function wood(id,u,v,L,W,edge){
-    // u entlang Faser (m), v quer (m)
+    // u entlang Faser (m), v quer (m); liefert [Helligkeit, Spätholz-Anteil]
     const r=hash2(id,3,seedBase), r2=hash2(id,9,seedBase), r3=hash2(id,13,seedBase);
-    const tone = 1 + (r-.5)*2*p.var;
+    const tone = 1 + (r-.5)*1.3*p.var;
     const ox=r*50, oy=r2*50;
-    const warp = fbm(u*0.9+ox, v*7+oy, seedBase, 3);
-    let ringPos=v;
-    if(r3<.55 && L>0.25){ // Fladerung (Kathedralen-Muster)
-      const c=(.15+.7*hash2(id,17,seedBase))*L, vc=(.2+.6*hash2(id,19,seedBase))*W;
-      const du=(u-c)/Math.max(L*.3,.08);
-      ringPos=Math.abs(v-vc)+0.010*du*du;
+    // Jahrring-Koordinate: stehende Jahre (gerade) oder Fladerung (Kathedrale)
+    let ringPos=v + (hash2(id,21,seedBase)-.5)*.3;
+    const flader = r3<.5 && L>0.3;
+    if(flader){
+      const c=(.2+.6*hash2(id,17,seedBase))*L, vc=(.25+.5*hash2(id,19,seedBase))*W;
+      const du=(u-c)/Math.max(L*.28,.07);
+      ringPos=Math.abs(v-vc+.004*Math.sin(u*3+ox))+0.006*du*du;
     }
-    const lines = Math.sin((ringPos*120 + warp*6 + Math.sin(u*0.7+ox)*0.8)*6.2831);
-    const grain = Math.pow(lines*.5+.5, 3);
-    const fine = vnoise(u*6+ox, v*520+oy, seedBase+3);
-    const brush = vnoise(u*2.5+ox, v*950+oy, seedBase+7);
-    const ray = vnoise(u*30+ox, v*60+oy, seedBase+5);
-    const big = fbm(u*0.5+ox, v*2.2+oy, seedBase+11, 2);
-    let f = tone * (1 - p.grain*grain - .07*(fine-.5)*2 - .05*(brush-.5) - .03*ray + .10*(big-.5));
-    // Äste
+    const dens = 230+90*hash2(id,23,seedBase);            // Ringe pro Meter (3–4 mm)
+    const warp = fbm(u*0.6+ox, v*9+oy, seedBase, 4);
+    let rp = ringPos*dens + warp*7 + Math.sin(u*0.9+ox)*1.2;
+    const ri=Math.floor(rp), t=rp-ri;
+    const ringStr = .45+.55*hash2(ri,id,seedBase+31);     // unregelmässige Ringstärke
+    const late = (smooth(.55,.9,t) - smooth(.93,1,t)) * ringStr;   // Spätholzlinie
+    // Poren (Eiche): kurze dunkle Striche entlang der Faser
+    const pore = smooth(.68,.82,vnoise(u*55+ox, rp*9, seedBase+3)) * (1-t*.6);
+    // lange Farbstreifen und grosse Wolken
+    const streak = fbm(u*0.35+ox, v*38+oy, seedBase+7, 3);
+    const big = fbm(u*0.25+ox, v*1.6+oy, seedBase+11, 3);
+    // Bürstung: feine Längsstruktur
+    const brush = vnoise(u*9+ox, v*2600+oy, seedBase+13);
+    const g=p.grain*1.25;
+    let f = tone * (1 - g*late*.9 - .055*g*pore/0.2 - .03*(brush-.5)*2 + .14*(streak-.5) + .12*(big-.5));
+    let lw = late*g*2.2 + pore*.12;
     if(p.knots>0){
       const ks=knots(id);
       for(const k of ks){
         const du=(u/L-k.u)*L, dv=(v/W-k.v)*W;
-        const d=Math.sqrt(du*du*0.25+dv*dv);
-        if(d<k.r*3.5){
-          const ring = Math.sin(d*900)*.5+.5;
-          if(d<k.r) f*= .55+.15*ring; else f*= 1-.12*(1-(d-k.r)/(k.r*2.5))*ring;
+        const d=Math.sqrt(du*du*0.18+dv*dv);
+        if(d<k.r*4){
+          const ring = Math.sin(d*1100+vnoise(du*300,dv*300,seedBase)*3)*.5+.5;
+          if(d<k.r){f*= .62+.14*ring; lw+=.6}
+          else {const a=1-(d-k.r)/(k.r*3);f*= 1-.10*a*ring;lw+=.3*a*ring}
         }
       }
     }
     // Fase/Fuge
-    if(edge<gap) f*=.55+.45*(edge/gap);
-    else if(edge<gap*2.5) f*=.94+.06*((edge-gap)/(gap*1.5));
-    return f;
+    if(edge<gap) {f*=.5+.5*(edge/gap);lw+=.5*(1-edge/gap)}
+    else if(edge<gap*2.5) f*=.93+.07*((edge-gap)/(gap*1.5));
+    return [f, Math.min(1.5,lw)];
   }
-
+  function smooth(a,b,x){const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)}
+  // Holzfarbe: dunkle Bereiche wärmer/gesättigter, helle etwas entsättigt
+  const lum0=(cr*.3+cg*.59+cb*.11);
+  const baseR=cr*.86+lum0*.14, baseG=cg*.86+lum0*.14, baseB=cb*.86+lum0*.14;
+  function woodRGB(res,id){
+    const f=res[0], lw=res[1];
+    const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*5);
+    const dk=Math.min(1,lw*.55);
+    R=baseR*f*(1+h*.05)*(1-dk*.10); G=baseG*f*(1-dk*.16); B=baseB*f*(1-h*.06)*(1-dk*.30);
+  }
+  let R,G,B;
   for(let y=0;y<size;y++){
     const Y=(y+.5)*px;
     for(let x=0;x<size;x++){
-      const X=(x+.5)*px; let R,G,B;
+      const X=(x+.5)*px;
       if(p.pattern==='plank'){
         const row=Math.floor(Y/p.w), v=Y-row*p.w;
         const off=rows[row%rows.length];
@@ -334,10 +356,7 @@ function genTexture(p, size){
         const col=Math.floor(s/p.L), u=s-col*p.L;
         const id=row*101+col+1;
         const edge=Math.min(v,p.w-v,u,p.L-u);
-        const f=wood(id,u,v,p.L,p.w,edge);
-        // leichte Farbverschiebung je Diele
-        const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
-        R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
+        woodRGB(wood(id,u,v,p.L,p.w,edge),id);
       } else if(p.pattern==='herring'){
         const n=p.n, w=p.w; const xu=X/w, yu=Y/w;
         const a0=Math.floor((xu+yu)/2), b0=Math.floor((xu-yu)/(2*n));
@@ -356,17 +375,14 @@ function genTexture(p, size){
           const id=mx*977+my*31+found.t*7+1;
           const u=found.u*w, v=found.v*w, L=n*w;
           const edge=Math.min(u,L-u,v,w-v);
-          const f=wood(id,u,v,L,w,edge);
-          const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
-          R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
+          woodRGB(wood(id,u,v,L,w,edge),id);
         }
       } else if(p.pattern==='mosaic'){
         const c=p.cell, cx=Math.floor(X/c), cy=Math.floor(Y/c), lx=X-cx*c, ly=Y-cy*c;
         const horiz=((cx+cy)&1)===0, sw=c/p.strips; let u,v,si;
         if(horiz){si=Math.floor(ly/sw);v=ly-si*sw;u=lx}else{si=Math.floor(lx/sw);v=lx-si*sw;u=ly}
         const nC=Math.round(P/c);const id=(((cx%nC)+nC)%nC)*131+(((cy%nC)+nC)%nC)*17+si*3+1;
-        const edge=Math.min(u,c-u,v,sw-v);const f=wood(id,u,v,c,sw,edge);const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
-        R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
+        const edge=Math.min(u,c-u,v,sw-v);woodRGB(wood(id,u,v,c,sw,edge),id);
       } else if(p.pattern==='tile'){
         const row=Math.floor(Y/p.th); const shift = p.tw>p.th ? (row%2)*p.tw/2 : 0;
         let s=(X-shift)%P; if(s<0)s+=P;
@@ -678,19 +694,18 @@ const CATS=['Alle','Landhausdiele','Schiffsboden','Fischgrat','Stäbchen'];
 function inCat(p,c){return c==='Alle'||p.cat===c}
 function buildChips(){const el=$('#chips');el.innerHTML='';CATS.forEach(c=>{const b=document.createElement('button');b.className='chip'+(c===state.cat?' on':'');b.textContent=c;b.onclick=()=>{state.cat=c;buildChips();buildStrip()};el.appendChild(b)})}
 const swCache=new Map();
-function swatch(p){if(swCache.has(p.id))return swCache.get(p.id);const t=genTexture(p,160);const P=periodOf(p);const c=document.createElement('canvas');c.width=c.height=176;const x=c.getContext('2d');
-  const span=Math.min(1,P),sc=176/(span/P*160);for(let yy=0;yy<176;yy+=160*sc)for(let xx=0;xx<176;xx+=160*sc)x.drawImage(t,xx,yy,160*sc,160*sc);swCache.set(p.id,c);return c}
+function swatch(p){if(swCache.has(p.id))return swCache.get(p.id);const span=p.pattern==='herring'?Math.min(periodOf(p),.9):p.pattern==='mosaic'?.48:Math.min(.8,p.w*4.2);const c=genTexture(p,176,span);swCache.set(p.id,c);return c}
 function buildStrip(){
   const el=$('#strip');el.innerHTML='';
   CATALOG.filter(p=>inCat(p,state.cat)).forEach((p,i)=>{
     const b=document.createElement('button');b.className='sw'+(p.id===state.product.id?' on':'');b.dataset.id=p.id;
     const cv=document.createElement('canvas');cv.width=cv.height=176;b.appendChild(cv);
-    const s=document.createElement('span');s.textContent=p.name;b.appendChild(s);
+    const s=document.createElement('span');s.textContent=p.name;b.appendChild(s);if(p.nr){const n=document.createElement('em');n.textContent='Art. '+p.nr;b.appendChild(n)}
     b.onclick=()=>selectProduct(p);el.appendChild(b);
     setTimeout(()=>cv.getContext('2d').drawImage(swatch(p),0,0),20+i*15);
   });
 }
-function updSel(){$('#selName').textContent=state.product.name;$('#selLine').textContent=state.product.line;$$('.sw').forEach(b=>b.classList.toggle('on',b.dataset.id===state.product.id))}
+function updSel(){const P=state.product;$('#selName').textContent=P.name;const L=$('#selLine');L.innerHTML='';if(P.nr){const n=document.createElement('span');n.className='nr';n.textContent='Art.-Nr. '+P.nr+' ⧉';n.onclick=e=>{e.stopPropagation();copy(P.nr)};L.append(n,' ')}L.append(P.line);$$('.sw').forEach(b=>b.classList.toggle('on',b.dataset.id===P.id))}
 function ensureFloor(){return selectProduct(state.product,true)}
 function selectProduct(p,silent){
   state.product=p;updSel();
@@ -735,7 +750,7 @@ function renderSaved(){
   const list=getSaved(),el=$('#savedList');el.innerHTML='';
   if(!list.length){el.innerHTML='<div class="empty">Noch keine Böden gemerkt.<br>Wähle einen Boden und tippe auf «♡ Merken».</div>';return}
   list.forEach(it=>{const p=prodById(it.product);const box=document.createElement('div');box.className='si';
-    box.innerHTML=`<img alt="" src="${it.thumb}"><div class="m"><b>${p.name}</b><small>${p.line} · ${new Date(it.date).toLocaleDateString('de-CH')}</small></div>
+    box.innerHTML=`<img alt="" src="${it.thumb}"><div class="m"><b>${p.name}</b><small>${p.nr?'Art.-Nr. '+p.nr+' · ':''}${p.line} · ${new Date(it.date).toLocaleDateString('de-CH')}</small></div>
     <div class="a"><button class="mini" data-a="load">Öffnen</button><button class="mini pri" data-a="sample">Gratis-Muster</button><button class="mini" data-a="offer">Offerte</button><button class="mini" data-a="share">Teilen</button><button class="mini del" data-a="del">Löschen</button></div>`;
     box.querySelector('[data-a=load]').onclick=()=>{$('#mSaved').classList.remove('on');loadSaved(it)};
     box.querySelector('[data-a=sample]').onclick=()=>{$('#mSaved').classList.remove('on');openRequest('sample',it)};
@@ -754,7 +769,7 @@ function loadSaved(it){
 let reqCtx=null;
 function openRequest(kind,it){
   reqCtx={kind,it};const p=prodById(it.product);
-  $('#reqTitle').textContent=kind==='sample'?'Gratis-Muster bestellen':'Offerte anfragen';$('#reqFloor').textContent=p.name+' · '+p.line;
+  $('#reqTitle').textContent=kind==='sample'?'Gratis-Muster bestellen':'Offerte anfragen';$('#reqFloor').textContent=p.name+(p.nr?' · Art.-Nr. '+p.nr:'')+' · '+p.line;
   const f=$('#reqForm');const s=store.get('naki-kontakt',{});['name','tel','email','street','city'].forEach(k=>{if(s[k]&&!f[k].value)f[k].value=s[k]});f.area.value=(it.W*it.D).toFixed(1);
   openModal('#mRequest');
 }
@@ -774,7 +789,7 @@ $('#copySum').onclick=()=>copy($('#sumText').textContent);
 
 /* ============ Teilen ============ */
 function openShare(src,p,it){
-  const txt=`So sähe unser neuer Boden aus: ${p.name} (${p.line}).\nGeplant mit dem Naki Bodenplaner – ${CONFIG.website}`;
+  const txt=`So sähe unser neuer Boden aus: ${p.name}${p.nr?' (Art.-Nr. '+p.nr+')':''}, ${p.line}.\nGeplant mit dem Naki Bodenplaner – ${CONFIG.website}`;
   if(RN){rnPost({type:'share',image:src,text:txt,title:p.name});return}
   $('#shareImg').src=src;$('#shareText').textContent=txt;openModal('#mShare');
 }
