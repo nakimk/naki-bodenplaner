@@ -195,7 +195,8 @@ input[type=range]{width:100%;accent-color:var(--accent-2)}
     <div><label>Tiefe (m)</label><input class="inp" type="number" id="d" step="0.1" min="0.5" value="4"></div></div></div>
   <div class="field"><div class="lab">Licht &amp; Schatten aus dem Foto <output id="lightOut">50 %</output></div><input type="range" id="light" min="0" max="100" value="50"></div>
   <div class="field"><div class="lab">Helligkeit <output id="brOut">0</output></div><input type="range" id="bright" min="-30" max="30" value="0"></div>
-  <p class="note">Tipp: Mit «⌖ Fläche» kannst du die vier Ecken auf die Ecken deines Bodens ziehen.</p>
+  <div class="field"><label class="lab" style="align-items:center;cursor:pointer"><span>Boden automatisch erkennen<br><small style="font-weight:400;color:var(--muted)">Möbel und Teppiche bleiben sichtbar</small></span><input type="checkbox" id="autoDet" checked style="width:22px;height:22px;accent-color:var(--accent-2)"></label></div>
+  <p class="note">Tipp: Mit «⌖ Fläche» passt du die Perspektive an – die vier Punkte auf Ecken bzw. Fugenlinien des Bodens ziehen.</p>
   <div class="acts"><button class="btn pri" data-close>Fertig</button></div>
 </div></div>
 
@@ -257,25 +258,7 @@ function fbm(x,y,s,o){let t=0,a=.5,f=1,n=0;for(let i=0;i<o;i++){t+=a*vnoise(x*f,
 
 /* ============ Produktkatalog ============ */
 // pattern: plank | herring | tile | cork ; Masse in Metern
-const CATALOG = [
-  {id:'eiche-natur', name:'Eiche Natur', line:'Landhausdiele 1-Stab · gebürstet, geölt', cat:'Parkett', tone:'mittel', pattern:'plank', P:2.2, w:0.2, L:2.2, color:[184,134,86], var:.10, grain:.16, knots:.25},
-  {id:'eiche-hell', name:'Eiche Hell', line:'Landhausdiele · naturgeölt hell', cat:'Parkett', tone:'hell', pattern:'plank', P:2.2, w:0.2, L:2.2, color:[212,174,128], var:.08, grain:.13, knots:.15},
-  {id:'eiche-weiss', name:'Eiche Weiss', line:'Landhausdiele · weiss geölt', cat:'Parkett', tone:'hell', pattern:'plank', P:2.2, w:0.2, L:2.2, color:[226,211,188], var:.06, grain:.10, knots:.12},
-  {id:'eiche-rustikal', name:'Eiche Rustikal', line:'Landhausdiele · astig, gebürstet', cat:'Parkett', tone:'mittel', pattern:'plank', P:2.2, w:0.22, L:2.2, color:[170,118,72], var:.16, grain:.20, knots:1.4},
-  {id:'eiche-geraeuchert', name:'Eiche Geräuchert', line:'Landhausdiele · geräuchert, geölt', cat:'Parkett', tone:'dunkel', pattern:'plank', P:2.2, w:0.2, L:2.2, color:[112,76,48], var:.14, grain:.18, knots:.4},
-  {id:'nussbaum', name:'Amerik. Nussbaum', line:'Landhausdiele schmal · lackiert', cat:'Parkett', tone:'dunkel', pattern:'plank', P:2.1, w:0.15, L:2.1, color:[104,70,49], var:.18, grain:.20, knots:.1},
-  {id:'fischgrat-natur', name:'Fischgrat Eiche Natur', line:'Fischgratparkett 9 × 54 cm', cat:'Parkett', tone:'mittel', pattern:'herring', w:0.09, n:6, color:[192,146,96], var:.12, grain:.15, knots:.05},
-  {id:'fischgrat-grau', name:'Fischgrat Eiche Grau', line:'Fischgratparkett · grau geölt', cat:'Parkett', tone:'mittel', pattern:'herring', w:0.09, n:6, color:[156,146,134], var:.09, grain:.14, knots:.05},
-  {id:'fischgrat-dunkel', name:'Fischgrat Eiche Mocca', line:'Fischgratparkett · gebeizt', cat:'Parkett', tone:'dunkel', pattern:'herring', w:0.09, n:6, color:[96,66,44], var:.14, grain:.16, knots:.05},
-  {id:'schiffsboden-esche', name:'Schiffsboden Esche', line:'3-Stab-Optik · matt lackiert', cat:'Parkett', tone:'hell', pattern:'plank', P:2.1, w:0.14, L:0.7, color:[214,190,150], var:.12, grain:.14, knots:.05},
-  {id:'vinyl-holz-sand', name:'Vinyl Eiche Sand', line:'SPC-Vinyl Holzoptik · Klick', cat:'Vinyl', tone:'hell', pattern:'plank', P:2.4, w:0.23, L:1.2, color:[200,170,132], var:.07, grain:.10, knots:.3},
-  {id:'vinyl-holz-grau', name:'Vinyl Eiche Grau', line:'Dryback-Vinyl Holzoptik', cat:'Vinyl', tone:'mittel', pattern:'plank', P:2.4, w:0.2, L:1.2, color:[150,140,128], var:.08, grain:.12, knots:.3},
-  {id:'vinyl-stein-grau', name:'Vinyl Schiefer Grau', line:'SPC-Vinyl Steinoptik 60 × 60', cat:'Vinyl', tone:'dunkel', pattern:'tile', P:2.4, tw:0.6, th:0.6, color:[108,110,112], var:.08, stone:'slate'},
-  {id:'vinyl-beton', name:'Vinyl Beton Hellgrau', line:'SPC-Vinyl Betonoptik 60 × 120', cat:'Vinyl', tone:'hell', pattern:'tile', P:2.4, tw:1.2, th:0.6, color:[184,182,176], var:.05, stone:'concrete'},
-  {id:'vinyl-travertin', name:'Vinyl Travertin', line:'SPC-Vinyl Natursteinoptik', cat:'Vinyl', tone:'hell', pattern:'tile', P:2.4, tw:0.6, th:0.6, color:[214,198,172], var:.06, stone:'travertine'},
-  {id:'kork-natur', name:'Kork Natur', line:'Klick-Korkboden · geölt', cat:'Kork', tone:'mittel', pattern:'cork', P:1.8, tw:0.9, th:0.3, color:[184,140,94], var:.06},
-  {id:'kork-hell', name:'Kork Sand', line:'Klick-Korkboden · weiss pigmentiert', cat:'Kork', tone:'hell', pattern:'cork', P:1.8, tw:0.9, th:0.3, color:[214,190,156], var:.05},
-];
+const CATALOG = [{"id": "kj132677","nr": "132677","name": "Davos Eiche Natur","cat": "Landhausdiele","tone": "mittel","color": [212,149,87],"var": 0.156,"grain": 0.22,"knots": 0.35,"line": "FARO · 2000 × 185 mm · gebürstet, geölt","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj132678","nr": "132678","name": "St. Moritz Eiche Natur","cat": "Landhausdiele","tone": "hell","color": [229,192,159],"var": 0.078,"grain": 0.13,"knots": 0.15,"line": "FARO · 2000 × 185 mm · gebürstet, geölt","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj132679","nr": "132679","name": "Arosa Eiche angeräuchert","cat": "Landhausdiele","tone": "mittel","color": [164,128,67],"var": 0.144,"grain": 0.18,"knots": 0.35,"line": "FARO · 2000 × 185 mm · angeräuchert, geölt","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj132690","nr": "132690","name": "Flims Eiche weiss","cat": "Landhausdiele","tone": "hell","color": [215,189,151],"var": 0.133,"grain": 0.18,"knots": 0.35,"line": "FARO · 2200 × 185 mm · gebürstet, weiss geölt","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.18333},{"id": "kj132694","nr": "132694","name": "Savognin Eiche Rustikal","cat": "Landhausdiele","tone": "mittel","color": [171,144,109],"var": 0.1,"grain": 0.18,"knots": 1.1,"line": "FARO · 1800 × 185 mm · rustikal, angeräuchert","pattern": "plank","P": 1.8,"L": 1.8,"w": 0.18},{"id": "kj135963","nr": "135963","name": "Parpan Dark Oak","cat": "Landhausdiele","tone": "dunkel","color": [142,110,58],"var": 0.122,"grain": 0.18,"knots": 0.35,"line": "FARO · 2200 × 185 mm · gebürstet, geölt","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.18333},{"id": "kj135960","nr": "135960","name": "Zizers 2.0 Castle Brown","cat": "Landhausdiele","tone": "dunkel","color": [116,89,48],"var": 0.1,"grain": 0.18,"knots": 0.15,"line": "FARO · 2200 × 185 mm · stark gebürstet","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.18333},{"id": "kj136656","nr": "136656","name": "Malix Eiche Natur","cat": "Landhausdiele","tone": "mittel","color": [143,128,103],"var": 0.111,"grain": 0.18,"knots": 0.15,"line": "FARO · 2200 × 185 mm · gebürstet, geölt","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.18333},{"id": "kj127737","nr": "127737","name": "Trend XL Air","cat": "Landhausdiele","tone": "mittel","color": [193,139,83],"var": 0.156,"grain": 0.22,"knots": 1.1,"line": "FARO · 2400 × 250 mm · Variation, geölt","pattern": "plank","P": 2.4,"L": 2.4,"w": 0.24},{"id": "kj127738","nr": "127738","name": "Trend XL Water","cat": "Landhausdiele","tone": "hell","color": [223,183,155],"var": 0.089,"grain": 0.18,"knots": 1.1,"line": "FARO · 2400 × 250 mm · Variation, weiss geölt","pattern": "plank","P": 2.4,"L": 2.4,"w": 0.24},{"id": "kj145418","nr": "145418","name": "Trend XL Raw","cat": "Landhausdiele","tone": "hell","color": [199,190,167],"var": 0.156,"grain": 0.22,"knots": 1.1,"line": "FARO · 2200 × 250 mm · Rohholzoptik","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.24444},{"id": "kj134673","nr": "134673","name": "Trend XL Bronze","cat": "Landhausdiele","tone": "dunkel","color": [95,52,26],"var": 0.122,"grain": 0.18,"knots": 0.35,"line": "FARO · 2390 × 252 mm · angeräuchert, handveredelt","pattern": "plank","P": 2.39,"L": 2.39,"w": 0.26556},{"id": "kj126762","nr": "126762","name": "Trend L Cloud","cat": "Landhausdiele","tone": "hell","color": [226,179,140],"var": 0.144,"grain": 0.18,"knots": 1.1,"line": "FARO · 2000 × 185 mm · Variation, weiss geölt","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj136496","nr": "136496","name": "Trend L Leather","cat": "Landhausdiele","tone": "dunkel","color": [147,111,72],"var": 0.111,"grain": 0.18,"knots": 1.1,"line": "FARO · 2200 × 185 mm · Variation, geölt","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.18333},{"id": "kj151787","nr": "151787","name": "Trend L Bourbon","cat": "Landhausdiele","tone": "mittel","color": [177,116,56],"var": 0.133,"grain": 0.18,"knots": 0.35,"line": "FARO · 1800 × 185 mm · gebürstet, geölt","pattern": "plank","P": 1.8,"L": 1.8,"w": 0.18},{"id": "kj141994","nr": "141994","name": "Barrique Wien","cat": "Landhausdiele","tone": "mittel","color": [202,169,112],"var": 0.189,"grain": 0.22,"knots": 1.1,"line": "FARO · 2000 × 190 mm · stark gebürstet, Barrique","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj141992","nr": "141992","name": "Barrique Kärnten","cat": "Landhausdiele","tone": "mittel","color": [171,145,123],"var": 0.24,"grain": 0.22,"knots": 1.1,"line": "FARO · 2000 × 190 mm · stark gebürstet, Barrique","pattern": "plank","P": 2.0,"L": 2.0,"w": 0.18182},{"id": "kj152440","nr": "152440","name": "Faro Color Latte","cat": "Landhausdiele","tone": "hell","color": [212,198,182],"var": 0.056,"grain": 0.13,"knots": 0.15,"line": "FARO · 2100 × 190 mm · gefast, oxidativ geölt","pattern": "plank","P": 2.1,"L": 2.1,"w": 0.19091},{"id": "kj152438","nr": "152438","name": "Faro Color Cappuccino","cat": "Landhausdiele","tone": "hell","color": [195,165,138],"var": 0.089,"grain": 0.18,"knots": 0.15,"line": "FARO · 2100 × 190 mm · gefast, oxidativ geölt","pattern": "plank","P": 2.1,"L": 2.1,"w": 0.19091},{"id": "kj152439","nr": "152439","name": "Faro Color Espresso","cat": "Landhausdiele","tone": "dunkel","color": [129,100,71],"var": 0.067,"grain": 0.13,"knots": 0.15,"line": "FARO · 2100 × 190 mm · gefast, oxidativ geölt","pattern": "plank","P": 2.1,"L": 2.1,"w": 0.19091},{"id": "kj152442","nr": "152442","name": "Faro Color Ristretto","cat": "Landhausdiele","tone": "dunkel","color": [93,78,66],"var": 0.067,"grain": 0.13,"knots": 0.15,"line": "FARO · 2100 × 190 mm · gefast, oxidativ geölt","pattern": "plank","P": 2.1,"L": 2.1,"w": 0.19091},{"id": "kj141246","nr": "141246","name": "Hardwood Edition Nr. 5","cat": "Landhausdiele","tone": "hell","color": [218,191,160],"var": 0.078,"grain": 0.13,"knots": 0.15,"line": "FARO · 2200 × 223 mm · Echtholz Clic","pattern": "plank","P": 2.2,"L": 2.2,"w": 0.22},{"id": "kj140087","nr": "140087","name": "Opal kerngeräuchert","cat": "Landhausdiele","tone": "dunkel","color": [66,58,57],"var": 0.067,"grain": 0.13,"knots": 0.15,"line": "FARO · 1800 × 190 mm · kerngeräuchert, geölt","pattern": "plank","P": 1.8,"L": 1.8,"w": 0.2},{"id": "kj151770","nr": "151770","name": "Style Rustic Dunes","cat": "Landhausdiele","tone": "mittel","color": [178,127,77],"var": 0.133,"grain": 0.18,"knots": 1.1,"line": "FARO · 2230 × 194 mm · rustikal, geölt","pattern": "plank","P": 2.23,"L": 2.23,"w": 0.20273},{"id": "kj140188","nr": "140188","name": "Schiffsboden Eiche Natur","cat": "Schiffsboden","tone": "mittel","color": [205,145,89],"var": 0.133,"grain": 0.18,"knots": 0.35,"line": "FARO · 2200 × 208 mm · 3-Stab, versiegelt","pattern": "plank","P": 2.2,"L": 0.7333,"w": 0.06875},{"id": "kj140185","nr": "140185","name": "Schiffsboden Ahorn","cat": "Schiffsboden","tone": "hell","color": [255,230,177],"var": 0.056,"grain": 0.13,"knots": 0.15,"line": "FARO · 2200 × 208 mm · 3-Stab, versiegelt","pattern": "plank","P": 2.2,"L": 0.7333,"w": 0.06875},{"id": "kj140454","nr": "140454","name": "Schiffsboden Eiche Earth","cat": "Schiffsboden","tone": "dunkel","color": [132,93,58],"var": 0.111,"grain": 0.18,"knots": 0.15,"line": "FARO · 2200 × 208 mm · 3-Stab, geölt","pattern": "plank","P": 2.2,"L": 0.7333,"w": 0.06875},{"id": "kj140591","nr": "140591","name": "Fischgrat Eiche Natur","cat": "Fischgrat","tone": "mittel","color": [191,165,117],"var": 0.089,"grain": 0.18,"knots": 0.15,"line": "FARO · 550 × 120 mm · 90°, geölt","pattern": "herring","w": 0.12,"n": 5},{"id": "kj140938","nr": "140938","name": "Fischgrat angeräuchert","cat": "Fischgrat","tone": "dunkel","color": [129,103,70],"var": 0.133,"grain": 0.18,"knots": 0.35,"line": "FARO · 550 × 120 mm · 90°, angeräuchert","pattern": "herring","w": 0.12,"n": 5},{"id": "kj147544","nr": "147544","name": "Fischgrat Eiche weiss","cat": "Fischgrat","tone": "hell","color": [202,180,162],"var": 0.067,"grain": 0.13,"knots": 0.15,"line": "FARO · 600 × 120 mm · 90°, weiss geölt","pattern": "herring","w": 0.12,"n": 5},{"id": "kj140542","nr": "140542","name": "Fischgrat Eiche 45°","cat": "Fischgrat","tone": "mittel","color": [186,139,83],"var": 0.089,"grain": 0.18,"knots": 0.15,"line": "FARO · 610 × 153 mm · 45°, geölt","pattern": "herring","w": 0.153,"n": 4},{"id": "kj144920","nr": "144920","name": "Stäbchen Eiche Natur","cat": "Stäbchen","tone": "mittel","color": [199,143,86],"var": 0.111,"grain": 0.18,"knots": 0.15,"line": "FARO · 490 × 70 mm · Englischer Verband","pattern": "plank","P": 1.96,"L": 0.49,"w": 0.07},{"id": "kj127751","nr": "127751","name": "Stäbchen Eiche weiss","cat": "Stäbchen","tone": "hell","color": [227,198,176],"var": 0.078,"grain": 0.13,"knots": 0.15,"line": "FARO · 490 × 70 mm · Englischer Verband","pattern": "plank","P": 1.96,"L": 0.49,"w": 0.07},{"id": "kj145536","nr": "145536","name": "Stäbchen Buche gedämpft","cat": "Stäbchen","tone": "hell","color": [238,175,118],"var": 0.078,"grain": 0.13,"knots": 0.15,"line": "FARO · 490 × 70 mm · Englischer Verband","pattern": "plank","P": 1.96,"L": 0.49,"w": 0.07},{"id": "kj139771","nr": "139771","name": "Stäbchen M Eiche Natur","cat": "Stäbchen","tone": "mittel","color": [207,147,83],"var": 0.122,"grain": 0.18,"knots": 0.35,"line": "FARO · 900 × 90 mm · matt versiegelt","pattern": "plank","P": 1.8,"L": 0.9,"w": 0.09},{"id": "kj126713","nr": "126713","name": "Mosaik Eiche roh","cat": "Stäbchen","tone": "mittel","color": [187,129,72],"var": 0.156,"grain": 0.22,"knots": 1.1,"line": "FARO · 160 × 32 mm · Klebeparkett 16 cm","pattern": "mosaic","cell": 0.16,"strips": 5,"P": 1.28},{"id": "kj144917","nr": "144917","name": "Stäbchen Eiche geräuchert","cat": "Stäbchen","tone": "dunkel","color": [52,31,21],"var": 0.067,"grain": 0.13,"knots": 0.15,"line": "FARO · 490 × 70 mm · geräuchert, geölt","pattern": "plank","P": 1.96,"L": 0.49,"w": 0.07}];
 
 /* ---------- Texturgenerierung ---------- */
 function periodOf(p){return p.pattern==='herring' ? 2*p.n*p.w : p.P}
@@ -305,15 +288,23 @@ function genTexture(p, size){
 
   function wood(id,u,v,L,W,edge){
     // u entlang Faser (m), v quer (m)
-    const r=hash2(id,3,seedBase), r2=hash2(id,9,seedBase);
+    const r=hash2(id,3,seedBase), r2=hash2(id,9,seedBase), r3=hash2(id,13,seedBase);
     const tone = 1 + (r-.5)*2*p.var;
     const ox=r*50, oy=r2*50;
     const warp = fbm(u*0.9+ox, v*7+oy, seedBase, 3);
-    const lines = Math.sin((v*90 + warp*9 + Math.sin(u*0.7+ox)*1.2)*6.2831);
+    let ringPos=v;
+    if(r3<.55 && L>0.25){ // Fladerung (Kathedralen-Muster)
+      const c=(.15+.7*hash2(id,17,seedBase))*L, vc=(.2+.6*hash2(id,19,seedBase))*W;
+      const du=(u-c)/Math.max(L*.3,.08);
+      ringPos=Math.abs(v-vc)+0.010*du*du;
+    }
+    const lines = Math.sin((ringPos*120 + warp*6 + Math.sin(u*0.7+ox)*0.8)*6.2831);
     const grain = Math.pow(lines*.5+.5, 3);
     const fine = vnoise(u*6+ox, v*520+oy, seedBase+3);
+    const brush = vnoise(u*2.5+ox, v*950+oy, seedBase+7);
     const ray = vnoise(u*30+ox, v*60+oy, seedBase+5);
-    let f = tone * (1 - p.grain*grain - .06*(fine-.5)*2 - .03*ray);
+    const big = fbm(u*0.5+ox, v*2.2+oy, seedBase+11, 2);
+    let f = tone * (1 - p.grain*grain - .07*(fine-.5)*2 - .05*(brush-.5) - .03*ray + .10*(big-.5));
     // Äste
     if(p.knots>0){
       const ks=knots(id);
@@ -345,7 +336,7 @@ function genTexture(p, size){
         const edge=Math.min(v,p.w-v,u,p.L-u);
         const f=wood(id,u,v,p.L,p.w,edge);
         // leichte Farbverschiebung je Diele
-        const h=hash2(id,5,seedBase)-.5;
+        const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
         R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
       } else if(p.pattern==='herring'){
         const n=p.n, w=p.w; const xu=X/w, yu=Y/w;
@@ -366,9 +357,16 @@ function genTexture(p, size){
           const u=found.u*w, v=found.v*w, L=n*w;
           const edge=Math.min(u,L-u,v,w-v);
           const f=wood(id,u,v,L,w,edge);
-          const h=hash2(id,5,seedBase)-.5;
+          const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
           R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
         }
+      } else if(p.pattern==='mosaic'){
+        const c=p.cell, cx=Math.floor(X/c), cy=Math.floor(Y/c), lx=X-cx*c, ly=Y-cy*c;
+        const horiz=((cx+cy)&1)===0, sw=c/p.strips; let u,v,si;
+        if(horiz){si=Math.floor(ly/sw);v=ly-si*sw;u=lx}else{si=Math.floor(lx/sw);v=lx-si*sw;u=ly}
+        const nC=Math.round(P/c);const id=(((cx%nC)+nC)%nC)*131+(((cy%nC)+nC)%nC)*17+si*3+1;
+        const edge=Math.min(u,c-u,v,sw-v);const f=wood(id,u,v,c,sw,edge);const h=(hash2(id,5,seedBase)-.5)*Math.min(1,p.var*6);
+        R=cr*f*(1+h*.05);G=cg*f;B=cb*f*(1-h*.06);
       } else if(p.pattern==='tile'){
         const row=Math.floor(Y/p.th); const shift = p.tw>p.th ? (row%2)*p.tw/2 : 0;
         let s=(X-shift)%P; if(s<0)s+=P;
@@ -462,8 +460,8 @@ function demoRoom(){
 /* ============ WebGL ============ */
 const glc=$('#gl');
 const gl=glc.getContext('webgl2',{preserveDrawingBuffer:true,antialias:true,premultipliedAlpha:false});
-const state={product:CATALOG[0],angle:0,W:4,D:4,light:.5,bright:0,split:-1,quad:null,photo:null,avgLum:.5,cat:'Alle',editing:false,isDemo:true};
-let prog,uni={},texPhoto,texFloor,aniso;const texCache=new Map();
+const state={product:CATALOG[0],angle:0,W:4,D:4,light:.5,bright:0,split:-1,quad:null,photo:null,avgLum:.5,cat:'Alle',editing:false,isDemo:true,useMask:false,autoDetect:true,mask:null};
+let prog,uni={},texPhoto,texFloor,texMask,aniso;const texCache=new Map();
 
 function initGL(){
   if(!gl){$('#stagebox').innerHTML='<div class="nogl">Dein Gerät unterstützt die 3D-Darstellung (WebGL 2) leider nicht.</div>';return false}
@@ -473,7 +471,7 @@ function initGL(){
   const fs=`#version 300 es
   precision highp float;
   in vec2 vP; out vec4 o;
-  uniform sampler2D uPhoto,uFloor;
+  uniform sampler2D uPhoto,uFloor,uMask; uniform float uUseMask;
   uniform mat3 uHinv; uniform vec2 uRoom; uniform float uAngle,uTexScale,uLight,uAvgLum,uSplit,uBright,uBlur;
   void main(){
     vec4 ph=texture(uPhoto,vP);
@@ -490,7 +488,9 @@ function initGL(){
     fl*=mix(1.,sh,uLight);
     fl*=1.+uBright;
     vec2 d=min(uv,1.-uv); float e=min(d.x,d.y);
-    float aa=clamp(e/max(fwidth(e),1e-5)+.5,0.,1.);
+    float aaQ=clamp(e/max(fwidth(e),1e-5)+.5,0.,1.);
+    float mk=smoothstep(.35,.65,texture(uMask,vP).r);
+    float aa=mix(aaQ,mk,uUseMask);
     if(q.z<=0.) aa=0.;
     aa*=step(uSplit,vP.x);
     o=vec4(mix(ph.rgb,clamp(fl,0.,1.),aa),1.);
@@ -499,16 +499,23 @@ function initGL(){
   prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
   const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
   const loc=gl.getAttribLocation(prog,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-  ['uPhoto','uFloor','uHinv','uRoom','uAngle','uTexScale','uLight','uAvgLum','uSplit','uBright','uBlur'].forEach(n=>uni[n]=gl.getUniformLocation(prog,n));
-  gl.uniform1i(uni.uPhoto,0);gl.uniform1i(uni.uFloor,1);
+  ['uPhoto','uFloor','uMask','uUseMask','uHinv','uRoom','uAngle','uTexScale','uLight','uAvgLum','uSplit','uBright','uBlur'].forEach(n=>uni[n]=gl.getUniformLocation(prog,n));
+  gl.uniform1i(uni.uPhoto,0);gl.uniform1i(uni.uFloor,1);gl.uniform1i(uni.uMask,2);
   aniso=gl.getExtension('EXT_texture_filter_anisotropic');
-  texPhoto=gl.createTexture();texFloor=gl.createTexture();
+  texPhoto=gl.createTexture();texFloor=gl.createTexture();texMask=gl.createTexture();uploadMask(null);
   return true;
 }
 function uploadPhoto(cv){
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texPhoto);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+}
+function uploadMask(cv){
+  gl.activeTexture(gl.TEXTURE2);gl.bindTexture(gl.TEXTURE_2D,texMask);
+  if(cv)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 }
 function uploadFloor(cv){
@@ -538,9 +545,72 @@ function draw(){
   gl.uniformMatrix3fv(uni.uHinv,true,new Float32Array(inv3(homography(state.quad))));
   gl.uniform2f(uni.uRoom,state.W,state.D);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
   gl.uniform1f(uni.uTexScale,1/periodOf(state.product));gl.uniform1f(uni.uLight,state.light);
-  gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
+  gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
   gl.uniform1f(uni.uBlur,Math.log2(Math.max(glc.width,glc.height))-4.5);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+
+
+/* ============ Automatische Bodenerkennung ============ */
+// Analysiert das Foto: Farbe/Struktur des Bodens unten im Bild, wächst von dort aus bis an Wände und Möbel.
+// Ergebnis: Maske (wo Boden ist) + perspektivisches Viereck (für Dielenrichtung und Massstab).
+function detectFloor(cv){
+  const S=Math.min(1,220/Math.max(cv.width,cv.height));const w=Math.max(8,Math.round(cv.width*S)),h=Math.max(8,Math.round(cv.height*S));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.filter='blur(1px)';x.drawImage(cv,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data;const N=w*h;const Lc=new Float32Array(N),Ac=new Float32Array(N),Bc=new Float32Array(N);
+  const lin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)};const fl=t=>t>.008856?Math.cbrt(t):7.787*t+16/116;
+  for(let i=0;i<N;i++){const r=lin(d[i*4]),g=lin(d[i*4+1]),b=lin(d[i*4+2]);
+    const X=(r*.4124+g*.3576+b*.1805)/.9505,Y=r*.2126+g*.7152+b*.0722,Z=(r*.0193+g*.1192+b*.9505)/1.089;
+    const fx=fl(X),fy=fl(Y),fz=fl(Z);Lc[i]=116*fy-16;Ac[i]=500*(fx-fy);Bc[i]=200*(fy-fz)}
+  // Startbereich: unten mittig
+  const seeds=[];for(let y=Math.floor(h*.84);y<Math.floor(h*.97);y++)for(let xx=Math.floor(w*.28);xx<Math.floor(w*.72);xx++)seeds.push(y*w+xx);
+  const med=arr=>{const a=seeds.map(i=>arr[i]).sort((p,q)=>p-q);return a[a.length>>1]};
+  const mL=med(Lc),mA=med(Ac),mB=med(Bc);
+  const dist=(i,L,A,B)=>{const dl=(Lc[i]-L)*.75,da=Ac[i]-A,db=Bc[i]-B;return Math.sqrt(dl*dl+da*da+db*db)};
+  let sd=0;for(const i of seeds)sd+=dist(i,mL,mA,mB)**2;sd=Math.sqrt(sd/seeds.length);
+  const T=Math.max(9,Math.min(24,sd*2.4+4));
+  const mask=new Uint8Array(N);const q=new Int32Array(N);let qh=0,qt=0;
+  for(const i of seeds)if(dist(i,mL,mA,mB)<T){mask[i]=1;q[qt++]=i}
+  const yMin=Math.floor(h*.15);
+  while(qh<qt){const i=q[qh++];const xi=i%w,yi=(i/w)|0;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=xi+dx,ny=yi+dy;if(nx<0||ny<yMin||nx>=w||ny>=h)continue;const n=ny*w+nx;if(mask[n])continue;
+      if(dist(n,mL,mA,mB)<T*1.45&&dist(n,Lc[i],Ac[i],Bc[i])<Math.max(3.5,T*.42)){mask[n]=1;q[qt++]=n}}}
+  // kleine Löcher füllen (Fugen, Spiegelungen), grosse bleiben (Möbel, Teppiche)
+  const lab=new Int32Array(N).fill(-1);let comp=0;
+  for(let i=0;i<N;i++){if(mask[i]||lab[i]>=0)continue;let h0=0,t0=0;q[t0++]=i;lab[i]=comp;const mem=[i];let border=false;
+    while(h0<t0){const j=q[h0++];const xj=j%w,yj=(j/w)|0;if(xj===0||yj===0||xj===w-1||yj===h-1)border=true;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=xj+dx,ny=yj+dy;if(nx<0||ny<0||nx>=w||ny>=h)continue;const n=ny*w+nx;if(mask[n]||lab[n]>=0)continue;lab[n]=comp;q[t0++]=n;mem.push(n)}}
+    if(!border&&mem.length<N*.004)for(const j of mem)mask[j]=1;comp++}
+  let area=0;for(let i=0;i<N;i++)area+=mask[i];const ratio=area/N;
+  if(ratio<.05||ratio>.9)return null;
+  // Viereck schätzen
+  const tops=[];for(let xx=0;xx<w;xx++){let cnt=0,top=-1;for(let y=0;y<h;y++)if(mask[y*w+xx]){cnt++;if(top<0)top=y}if(cnt>3)tops.push(top)}
+  tops.sort((p,q2)=>p-q2);const yTop=tops[Math.floor(tops.length*.15)]||Math.floor(h*.5);
+  const Lp=[],Rp=[];for(let y=yTop;y<h;y++){let l=-1,r=-1;for(let xx=0;xx<w;xx++)if(mask[y*w+xx]){if(l<0)l=xx;r=xx}if(l<0)continue;if(l>2)Lp.push([y,l]);if(r<w-3)Rp.push([y,r])}
+  const fit=pts=>{if(pts.length<h*.12)return null;let sy=0,sx=0,syy=0,sxy=0;for(const [y,xx] of pts){sy+=y;sx+=xx;syy+=y*y;sxy+=y*xx}const n=pts.length,den=n*syy-sy*sy;if(Math.abs(den)<1e-6)return null;const a=(n*sxy-sy*sx)/den;return{a,b:(sx-a*sy)/n}};
+  let fL=fit(Lp),fR=fit(Rp);
+  if(fL&&fL.a>-0.12)fL=null; if(fR&&fR.a<0.12)fR=null; // nur echte, nach unten auseinanderlaufende Kanten (keine Wände/Möbel)
+  const cx=w/2;
+  if(!fL&&fR)fL={a:-fR.a,b:2*cx-fR.b};
+  if(fL&&!fR)fR={a:-fL.a,b:2*cx-fL.b};
+  if(!fL&&!fR){const span=(h-yTop)||1;const a=w*.24/span;fL={a:-a,b:cx-w*.38+a*yTop};fR={a,b:cx+w*.38-a*yTop}}
+  const X=(f,y)=>f.a*y+f.b;
+  let quad=[[X(fL,yTop)/w,yTop/h],[X(fR,yTop)/w,yTop/h],[X(fR,h)/w,1],[X(fL,h)/w,1]];
+  if(!(quad[1][0]-quad[0][0]>.05&&quad[2][0]-quad[3][0]>quad[1][0]-quad[0][0]))quad=[[.15,yTop/h],[.85,yTop/h],[1.1,1],[-.1,1]];
+  quad=quad.map(([u,v])=>[Math.max(-1,Math.min(2,u)),Math.max(0,Math.min(1,v))]);
+  // Maske als Bild (weich)
+  const mc=document.createElement('canvas');mc.width=w;mc.height=h;const mx=mc.getContext('2d');const id=mx.createImageData(w,h);
+  for(let i=0;i<N;i++){const v=mask[i]*255;id.data[i*4]=v;id.data[i*4+1]=v;id.data[i*4+2]=v;id.data[i*4+3]=255}
+  mx.putImageData(id,0,0);const mc2=document.createElement('canvas');mc2.width=w*2;mc2.height=h*2;const m2=mc2.getContext('2d');m2.filter='blur(1.5px)';m2.drawImage(mc,0,0,w*2,h*2);
+  return {mask:mc2,quad,ratio};
+}
+function applyDetection(keepQuad){
+  if(state.isDemo||!state.photo){state.useMask=false;state.mask=null;uploadMask(null);return false}
+  let r=null;try{r=detectFloor(state.photo)}catch(e){r=null}
+  if(!r){state.useMask=false;state.mask=null;uploadMask(null);return false}
+  state.mask=r.mask;uploadMask(r.mask);state.useMask=state.autoDetect;
+  if(!keepQuad){state.quad=r.quad;computeAvgLum();placeHandles()}
+  return true;
 }
 
 /* ============ Bildschirme ============ */
@@ -570,13 +640,14 @@ function loadImageSrc(url,revoke){
     c.getContext('2d').drawImage(im,0,0,c.width,c.height);if(revoke)URL.revokeObjectURL(url);
     state.isDemo=false;
     // Standardfläche: untere Bildhälfte als Boden
-    setPhoto(c,[[.12,.56],[.88,.56],[1,1],[0,1]],[4,4]);
+    setPhoto(c,[[.12,.56],[.88,.56],[1,1],[0,1]],[4,4.5]);
+    const ok=state.autoDetect&&applyDetection(false);
     setEditing(false);setCompare(false);showEditor();
-    ensureFloor().then(()=>showHint('Passt die Fläche nicht? Tippe auf ⌖ Fläche',4200));
+    ensureFloor().then(()=>showHint(ok?'Boden automatisch erkannt ✓':'Passt die Fläche nicht? Tippe auf ⌖ Fläche',3800));
   };
   im.onerror=()=>toast('Bild konnte nicht gelesen werden');im.src=url;
 }
-$('#btnDemo').onclick=()=>{state.isDemo=true;const d=demoRoom();setPhoto(d.canvas,d.quad,d.dims);setEditing(false);setCompare(false);showEditor();ensureFloor()};
+$('#btnDemo').onclick=()=>{state.isDemo=true;const d=demoRoom();setPhoto(d.canvas,d.quad,d.dims);applyDetection(true);setEditing(false);setCompare(false);showEditor();ensureFloor()};
 $('#btnBack').onclick=showStart;
 
 /* ============ Ecken ============ */
@@ -591,7 +662,7 @@ function buildHandles(){
       h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)});
   }
 }
-function placeHandles(){if(!state.quad)return;state.quad.forEach((p,i)=>{handles[i].style.left=p[0]*100+'%';handles[i].style.top=p[1]*100+'%'});$('#quadPoly').setAttribute('points',state.quad.map(p=>p.join(',')).join(' '))}
+function placeHandles(){if(!state.quad)return;state.quad.forEach((p,i)=>{handles[i].style.left=Math.max(0,Math.min(1,p[0]))*100+'%';handles[i].style.top=Math.max(0,Math.min(1,p[1]))*100+'%'});$('#quadPoly').setAttribute('points',state.quad.map(p=>p.join(',')).join(' '))}
 function setEditing(on){state.editing=on;$('#overlay').classList.toggle('off',!on);$('#tEdit').classList.toggle('on',on);if(on){setCompare(false);showHint('Ziehe die 4 Punkte auf die Ecken des Bodens',3500)}}
 $('#tEdit').onclick=()=>setEditing(!state.editing);
 
@@ -603,8 +674,8 @@ $('#tCompare').onclick=()=>setCompare(state.split<0);
   const up=()=>{sl.removeEventListener('pointermove',mv);sl.removeEventListener('pointerup',up)};sl.addEventListener('pointermove',mv);sl.addEventListener('pointerup',up)})})();
 
 /* ============ Böden-Leiste ============ */
-const CATS=['Alle','Parkett','Fischgrat','Vinyl','Kork'];
-function inCat(p,c){if(c==='Alle')return true;if(c==='Fischgrat')return p.pattern==='herring';if(c==='Parkett')return p.cat==='Parkett'&&p.pattern!=='herring';return p.cat===c}
+const CATS=['Alle','Landhausdiele','Schiffsboden','Fischgrat','Stäbchen'];
+function inCat(p,c){return c==='Alle'||p.cat===c}
 function buildChips(){const el=$('#chips');el.innerHTML='';CATS.forEach(c=>{const b=document.createElement('button');b.className='chip'+(c===state.cat?' on':'');b.textContent=c;b.onclick=()=>{state.cat=c;buildChips();buildStrip()};el.appendChild(b)})}
 const swCache=new Map();
 function swatch(p){if(swCache.has(p.id))return swCache.get(p.id);const t=genTexture(p,160);const P=periodOf(p);const c=document.createElement('canvas');c.width=c.height=176;const x=c.getContext('2d');
@@ -638,6 +709,7 @@ $('#ang').oninput=e=>setAngle(+e.target.value);
 $('#tRotate').onclick=()=>{const o=[0,90,45,135];setAngle(o[(o.indexOf(Math.round(state.angle))+1)%4]);showHint('Verlegerichtung '+Math.round(state.angle)+'°',1200)};
 $('#w').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){state.W=v;render()}};
 $('#d').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){state.D=v;render()}};
+$('#autoDet').onchange=e=>{state.autoDetect=e.target.checked;if(state.autoDetect&&!state.mask)applyDetection(true);state.useMask=state.autoDetect&&!!state.mask;render()};
 $('#light').oninput=e=>{state.light=e.target.value/100;$('#lightOut').textContent=e.target.value+' %';render()};
 $('#bright').oninput=e=>{state.bright=e.target.value/100;$('#brOut').textContent=(e.target.value>0?'+':'')+e.target.value;render()};
 
@@ -673,7 +745,7 @@ function renderSaved(){
     el.appendChild(box)});
 }
 function loadSaved(it){
-  const apply=cv=>{setPhoto(cv,it.quad,[it.W,it.D]);state.light=it.light;$('#light').value=Math.round(it.light*100);state.bright=it.bright||0;setAngle(it.angle);setEditing(false);setCompare(false);showEditor();selectProduct(prodById(it.product))};
+  const apply=cv=>{setPhoto(cv,it.quad,[it.W,it.D]);applyDetection(true);state.light=it.light;$('#light').value=Math.round(it.light*100);state.bright=it.bright||0;setAngle(it.angle);setEditing(false);setCompare(false);showEditor();selectProduct(prodById(it.product))};
   if(it.demo||!it.photo){state.isDemo=true;apply(demoRoom().canvas)}
   else{const im=new Image();im.onload=()=>{state.isDemo=false;const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);apply(c)};im.src=it.photo}
 }
@@ -691,7 +763,7 @@ $('#reqForm').addEventListener('submit',e=>{
   store.set('naki-kontakt',{name:v('name'),tel:v('tel'),email:v('email'),street:v('street'),city:v('city')});
   const p=prodById(reqCtx.it.product),isS=reqCtx.kind==='sample';
   const subject=(isS?'Musterbestellung: ':'Offertanfrage: ')+p.name;
-  const body=`Guten Tag\n\n${isS?'Gerne bestelle ich ein Gratis-Muster für folgenden Boden:':'Gerne möchte ich eine Offerte für folgenden Boden:'}\n\nBoden: ${p.name} (${p.line})\nVerlegerichtung: ${Math.round(reqCtx.it.angle)}°\nFläche ca.: ${v('area')||'-'} m²\n\nName: ${v('name')}\nAdresse: ${v('street')||'-'}, ${v('city')}\nE-Mail: ${v('email')}\nTelefon: ${v('tel')||'-'}\n${v('msg')?'\nNachricht:\n'+v('msg')+'\n':''}\nFreundliche Grüsse\n${v('name')}\n\n(erstellt mit dem Naki Bodenplaner)`;
+  const body=`Guten Tag\n\n${isS?'Gerne bestelle ich ein Gratis-Muster für folgenden Boden:':'Gerne möchte ich eine Offerte für folgenden Boden:'}\n\nBoden: ${p.name} (${p.line})${p.nr?'\nArtikel-Nr.: '+p.nr:''}\nVerlegerichtung: ${Math.round(reqCtx.it.angle)}°\nFläche ca.: ${v('area')||'-'} m²\n\nName: ${v('name')}\nAdresse: ${v('street')||'-'}, ${v('city')}\nE-Mail: ${v('email')}\nTelefon: ${v('tel')||'-'}\n${v('msg')?'\nNachricht:\n'+v('msg')+'\n':''}\nFreundliche Grüsse\n${v('name')}\n\n(erstellt mit dem Naki Bodenplaner)`;
   $('#sumText').textContent=body;$('#mailShow').textContent=CONFIG.email;
   $('#mailLink').href=`mailto:${CONFIG.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   $('#mRequest').classList.remove('on');openModal('#mSummary');
