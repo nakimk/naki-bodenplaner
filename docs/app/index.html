@@ -200,6 +200,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2)}
     <div><label>Tiefe (m)</label><input class="inp" type="number" id="d" step="0.1" min="0.5" value="4"></div></div></div>
   <div class="field"><div class="lab">Licht &amp; Schatten aus dem Foto <output id="lightOut">50 %</output></div><input type="range" id="light" min="0" max="100" value="50"></div>
   <div class="field"><div class="lab">Helligkeit <output id="brOut">0</output></div><input type="range" id="bright" min="-30" max="30" value="0"></div>
+  <div class="field"><label class="lab"><span>Dielengrösse</span><span id="scv">100 %</span></label><input type="range" id="sc" min="40" max="250" value="100"></div>
   <div class="field"><label class="lab" style="align-items:center;cursor:pointer"><span>Boden automatisch erkennen<br><small style="font-weight:400;color:var(--muted)">Möbel und Teppiche bleiben sichtbar</small></span><input type="checkbox" id="autoDet" checked style="width:22px;height:22px;accent-color:var(--accent-2)"></label></div>
   <p class="note">Tipp: Mit «⌖ Fläche» passt du die Perspektive an – die vier Punkte auf Ecken bzw. Fugenlinien des Bodens ziehen.</p>
   <div class="acts"><button class="btn pri" data-close>Fertig</button></div>
@@ -568,7 +569,7 @@ let raf=0;function render(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;d
 function draw(){
   if(!gl||!state.photo)return;gl.viewport(0,0,glc.width,glc.height);
   gl.uniformMatrix3fv(uni.uHinv,true,new Float32Array(inv3(homography(state.quad))));
-  gl.uniform2f(uni.uRoom,state.W,state.D);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
+  gl.uniform2f(uni.uRoom,state.W/(state.sc||1),state.D/(state.sc||1));gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
   gl.uniform1f(uni.uTexScale,1/periodOf(state.product));gl.uniform1f(uni.uLight,state.light);
   gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
   gl.uniform1f(uni.uBlur,Math.log2(Math.max(glc.width,glc.height))-4.5);
@@ -629,12 +630,23 @@ function detectFloor(cv){
   mx.putImageData(id,0,0);const mc2=document.createElement('canvas');mc2.width=w*2;mc2.height=h*2;const m2=mc2.getContext('2d');m2.filter='blur(1.5px)';m2.drawImage(mc,0,0,w*2,h*2);
   return {mask:mc2,quad,ratio};
 }
+// Reale Masse aus Foto schätzen (Handykamera ~1.5 m Höhe, typischer Bildwinkel)
+function estimateDims(q,cv){
+  const Wi=cv.width,Hi=cv.height,bw=Math.max(.05,q[2][0]-q[3][0]),tw=Math.max(.02,q[1][0]-q[0][0]);
+  const base=Wi>Hi?2.2:1.6;                       // Bodenbreite am unteren Bildrand in m
+  const W=Math.min(8,Math.max(.8,bw*base));
+  const ratio=bw/tw, hpx=(1-Math.min(q[0][1],q[1][1]))*Hi, bpx=bw*Wi;
+  const h=1.4,sn=Math.max(h+.05,W/.93),sf=sn*ratio;
+  let D=Math.max(Math.sqrt(sf*sf-h*h)-Math.sqrt(sn*sn-h*h), W*hpx/bpx);
+  D=Math.min(9,Math.max(.8,D));
+  return [Math.round(W*10)/10,Math.round(D*10)/10];
+}
 function applyDetection(keepQuad){
   if(state.isDemo||!state.photo){state.useMask=false;state.mask=null;uploadMask(null);return false}
   let r=null;try{r=detectFloor(state.photo)}catch(e){r=null}
   if(!r){state.useMask=false;state.mask=null;uploadMask(null);return false}
   state.mask=r.mask;uploadMask(r.mask);state.useMask=state.autoDetect;
-  if(!keepQuad){state.quad=r.quad;computeAvgLum();placeHandles()}
+  if(!keepQuad){state.quad=r.quad;const d=estimateDims(r.quad,state.photo);state.W=d[0];state.D=d[1];$('#w').value=d[0];$('#d').value=d[1];computeAvgLum();placeHandles()}
   return true;
 }
 
@@ -665,7 +677,7 @@ function loadImageSrc(url,revoke){
     c.getContext('2d').drawImage(im,0,0,c.width,c.height);if(revoke)URL.revokeObjectURL(url);
     state.isDemo=false;
     // Standardfläche: untere Bildhälfte als Boden
-    setPhoto(c,[[.12,.56],[.88,.56],[1,1],[0,1]],[4,4.5]);
+    const q0=[[.12,.56],[.88,.56],[1,1],[0,1]];setPhoto(c,q0,estimateDims(q0,c));state.sc=1;$('#sc').value=100;
     const ok=state.autoDetect&&applyDetection(false);
     setEditing(false);setCompare(false);showEditor();
     ensureFloor().then(()=>showHint(ok?'Boden automatisch erkannt ✓':'Passt die Fläche nicht? Tippe auf ⌖ Fläche',3800));
@@ -740,6 +752,7 @@ $('#ang').oninput=e=>setAngle(+e.target.value);
 $('#tRotate').onclick=()=>{const o=[0,90,45,135];setAngle(o[(o.indexOf(Math.round(state.angle))+1)%4]);showHint('Verlegerichtung '+Math.round(state.angle)+'°',1200)};
 $('#w').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){state.W=v;render()}};
 $('#d').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){state.D=v;render()}};
+$('#sc').oninput=e=>{state.sc=e.target.value/100;$('#scv').textContent=e.target.value+' %';render()};
 $('#autoDet').onchange=e=>{state.autoDetect=e.target.checked;if(state.autoDetect&&!state.mask)applyDetection(true);state.useMask=state.autoDetect&&!!state.mask;render()};
 $('#light').oninput=e=>{state.light=e.target.value/100;$('#lightOut').textContent=e.target.value+' %';render()};
 $('#bright').oninput=e=>{state.bright=e.target.value/100;$('#brOut').textContent=(e.target.value>0?'+':'')+e.target.value;render()};
