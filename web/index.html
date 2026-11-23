@@ -76,15 +76,15 @@ button{cursor:pointer;border:0;background:none;padding:0}
 .chip{flex:none;padding:7px 14px;border-radius:999px;background:#f1ebe2;font-size:13.5px;font-weight:600;color:#5b4f44}
 .chip.on{background:var(--ink);color:#fff}
 .strip{display:flex;gap:10px;overflow-x:auto;padding:2px 14px 4px;scroll-snap-type:x proximity;scrollbar-width:none}
-.sw{flex:none;width:88px;scroll-snap-align:start;text-align:center}
-.sw img{width:88px;height:88px;object-fit:cover;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12);background:#eee3d6}
+.sw{flex:none;width:118px;scroll-snap-align:start;text-align:center}
+.sw img{width:118px;height:118px;object-fit:cover;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12);background:#eee3d6}
 .sw.on img{border-color:var(--accent-2)}
 .photo-big{width:100%;border-radius:14px;display:block;max-height:62vh;object-fit:contain;background:#f3ece3}
-.sw canvas{width:88px;height:88px;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.sw canvas{width:118px;height:118px;border-radius:14px;display:block;border:3px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .sw.on canvas{border-color:var(--accent-2);box-shadow:0 0 0 2px #fff inset}
 .sw em{display:block;font-style:normal;font-size:10.5px;color:#9a7b5c;margin-top:2px;font-variant-numeric:tabular-nums}
 .nr{display:inline-block;margin-right:4px;padding:1px 7px;border-radius:9px;background:#f1e6d8;color:#7a5634;font-size:11.5px;font-weight:600;cursor:pointer;vertical-align:1px}
-.sw span{display:block;font-size:11.5px;line-height:1.2;margin-top:5px;color:#4b4036;font-weight:500}
+.sw span{display:block;font-size:12.5px;line-height:1.2;margin-top:5px;color:#4b4036;font-weight:500}
 .selrow{display:flex;align-items:center;gap:10px;padding:10px 14px 0}
 .selrow .nm{flex:1;min-width:0}
 .selrow .nm b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -825,7 +825,7 @@ function buildStrip(){
   CATALOG.filter(p=>inCat(p,state.cat)).forEach((p,i)=>{
     const b=document.createElement('button');b.className='sw'+(p.id===state.product.id?' on':'');b.dataset.id=p.id;
     const cv=document.createElement('canvas');cv.width=cv.height=176;
-    if(p.nr){const im=new Image();im.alt='';im.loading='lazy';im.decoding='async';im.src='p/'+p.nr+'.jpg';im.onerror=()=>{im.replaceWith(cv);cv.getContext('2d').drawImage(swatch(p),0,0)};b.appendChild(im);cv._real=true}else b.appendChild(cv);
+    if(p.nr){const im=new Image();im.alt='';im.loading='lazy';im.decoding='async';im.src='p/'+p.nr+'.jpg?v=2';im.onerror=()=>{im.replaceWith(cv);cv.getContext('2d').drawImage(swatch(p),0,0)};b.appendChild(im);cv._real=true}else b.appendChild(cv);
     const s=document.createElement('span');s.textContent=p.name;b.appendChild(s);if(p.nr){const n=document.createElement('em');n.textContent='Art. '+p.nr;b.appendChild(n)}
     b.onclick=()=>{if(p.id===state.product.id)openPhoto(p);else selectProduct(p)};el.appendChild(b);
     if(!cv._real)setTimeout(()=>cv.getContext('2d').drawImage(swatch(p),0,0),20+i*15);
