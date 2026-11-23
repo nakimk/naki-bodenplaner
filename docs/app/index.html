@@ -571,7 +571,7 @@ let raf=0;function render(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;d
 function draw(){
   if(!gl||!state.photo)return;gl.viewport(0,0,glc.width,glc.height);
   gl.uniformMatrix3fv(uni.uHinv,true,new Float32Array(inv3(homography(state.quad))));
-  const k=(state.sc||1)*(state.isDemo?1:2.5);gl.uniform2f(uni.uRoom,state.W/k,state.D/k);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
+  const k=(state.sc||1)*(state.isDemo?1:5);gl.uniform2f(uni.uRoom,state.W/k,state.D/k);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
   gl.uniform1f(uni.uTexScale,1/periodOf(state.product));gl.uniform1f(uni.uLight,state.light);
   gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
   gl.uniform1f(uni.uBlur,Math.log2(Math.max(glc.width,glc.height))-4.5);
