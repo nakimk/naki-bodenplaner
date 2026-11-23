@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState, type ComponentType, type RefAttributes } from 'react';
-import { Alert, Linking, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ComponentType, type RefAttributes } from 'react';
+import { Alert, BackHandler, Linking, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent, type WebViewProps } from 'react-native-webview';
@@ -26,7 +26,8 @@ type BridgeMessage =
   | { type: 'pick' }
   | { type: 'copy'; text: string }
   | { type: 'share'; image: string; text: string; title?: string }
-  | { type: 'open'; url: string };
+  | { type: 'open'; url: string }
+  | { type: 'exit' };
 
 export default function App() {
   const web = useRef<WebView<object>>(null);
@@ -92,6 +93,17 @@ export default function App() {
     [toast]
   );
 
+  // Android-Zurücktaste: die Web-App entscheidet (Fenster → Startseite → App schliessen)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      web.current?.injectJavaScript(
+        "(window.nakiBack?window.nakiBack():window.ReactNativeWebView.postMessage('{\"type\":\"exit\"}'));true;"
+      );
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
+
   const onMessage = useCallback(
     (e: WebViewMessageEvent) => {
       let msg: BridgeMessage;
@@ -109,6 +121,9 @@ export default function App() {
           break;
         case 'share':
           void shareImage(msg.image, msg.text, msg.title).catch(() => toast('Teilen fehlgeschlagen'));
+          break;
+        case 'exit':
+          BackHandler.exitApp();
           break;
         case 'open':
           void Linking.openURL(msg.url).catch(() => toast('Link konnte nicht geöffnet werden'));
