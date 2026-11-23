@@ -202,7 +202,7 @@ input[type=range]{width:100%;accent-color:var(--accent-2)}
     <div><label>Tiefe (m)</label><input class="inp" type="number" id="d" step="0.1" min="0.5" value="4"></div></div></div>
   <div class="field"><div class="lab">Licht &amp; Schatten aus dem Foto <output id="lightOut">50 %</output></div><input type="range" id="light" min="0" max="100" value="50"></div>
   <div class="field"><div class="lab">Helligkeit <output id="brOut">0</output></div><input type="range" id="bright" min="-30" max="30" value="0"></div>
-  <div class="field"><label class="lab"><span>Dielengrösse</span><span id="scv">100 %</span></label><input type="range" id="sc" min="40" max="250" value="100"></div>
+  <div class="field"><label class="lab"><span>Dielengrösse</span><span id="scv">100 %</span></label><input type="range" id="sc" min="40" max="200" value="100"></div>
   <div class="field"><label class="lab" style="align-items:center;cursor:pointer"><span>Boden automatisch erkennen<br><small style="font-weight:400;color:var(--muted)">Möbel und Teppiche bleiben sichtbar</small></span><input type="checkbox" id="autoDet" checked style="width:22px;height:22px;accent-color:var(--accent-2)"></label></div>
   <p class="note">Tipp: Mit «⌖ Fläche» passt du die Perspektive an – die vier Punkte auf Ecken bzw. Fugenlinien des Bodens ziehen.</p>
   <div class="acts"><button class="btn pri" data-close>Fertig</button></div>
@@ -571,7 +571,7 @@ let raf=0;function render(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;d
 function draw(){
   if(!gl||!state.photo)return;gl.viewport(0,0,glc.width,glc.height);
   gl.uniformMatrix3fv(uni.uHinv,true,new Float32Array(inv3(homography(state.quad))));
-  gl.uniform2f(uni.uRoom,state.W/(state.sc||1),state.D/(state.sc||1));gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
+  const k=(state.sc||1)*(state.isDemo?1:2.5);gl.uniform2f(uni.uRoom,state.W/k,state.D/k);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
   gl.uniform1f(uni.uTexScale,1/periodOf(state.product));gl.uniform1f(uni.uLight,state.light);
   gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
   gl.uniform1f(uni.uBlur,Math.log2(Math.max(glc.width,glc.height))-4.5);
@@ -769,7 +769,7 @@ function loadImageSrc(url,revoke){
     c.getContext('2d').drawImage(im,0,0,c.width,c.height);if(revoke)URL.revokeObjectURL(url);
     state.isDemo=false;
     // Standardfläche: untere Bildhälfte als Boden
-    const q0=[[.12,.56],[.88,.56],[1,1],[0,1]];setPhoto(c,q0,estimateDims(q0,c));state.sc=1;$('#sc').value=100;
+    const q0=[[.12,.56],[.88,.56],[1,1],[0,1]];setPhoto(c,q0,estimateDims(q0,c));state.sc=1;$('#sc').value=100;$('#scv').textContent='100 %';
     setEditing(false);setCompare(false);showEditor();
     if(state.autoDetect){
       $('#busy').classList.add('on');showHint('Boden wird erkannt …',8000);
