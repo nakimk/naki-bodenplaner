@@ -489,7 +489,7 @@ function demoRoom(){
 const glc=$('#gl');
 const gl=glc.getContext('webgl2',{preserveDrawingBuffer:true,antialias:true,premultipliedAlpha:false});
 const state={product:CATALOG[0],angle:0,W:4,D:4,light:.5,bright:0,split:-1,quad:null,photo:null,avgLum:.5,cat:'Alle',editing:false,isDemo:true,useMask:false,autoDetect:true,mask:null};
-let prog,uni={},texPhoto,texFloor,texMask,aniso;const texCache=new Map();
+let prog,uni={},texPhoto,texFloor,texMask,texLM,aniso;const texCache=new Map();
 
 function initGL(){
   if(!gl){$('#stagebox').innerHTML='<div class="nogl">Dein Gerät unterstützt die 3D-Darstellung (WebGL 2) leider nicht.</div>';return false}
@@ -499,7 +499,7 @@ function initGL(){
   const fs=`#version 300 es
   precision highp float;
   in vec2 vP; out vec4 o;
-  uniform sampler2D uPhoto,uFloor,uMask; uniform float uUseMask;
+  uniform sampler2D uPhoto,uFloor,uMask,uLM; uniform float uUseMask,uUseLM;
   uniform mat3 uHinv; uniform vec2 uRoom; uniform float uAngle,uTexScale,uLight,uAvgLum,uSplit,uBright,uBlur;
   void main(){
     vec4 ph=texture(uPhoto,vP);
@@ -513,7 +513,11 @@ function initGL(){
     vec3 bl=textureLod(uPhoto,vP,uBlur).rgb;
     float lum=dot(bl,vec3(.299,.587,.114));
     float sh=clamp(lum/max(uAvgLum,.02),.6,1.35);
+    vec2 lm=texture(uLM,vP).rg;
+    // Licht nur aus Bodenpixeln (Schatten von Möbeln bleiben), Kontaktschatten an Wänden/Möbeln
+    sh=mix(sh,lm.r*2.,uUseLM);
     fl*=mix(1.,sh,uLight);
+    fl*=mix(1.,lm.g*2.,uUseLM);
     fl*=1.+uBright;
     vec2 d=min(uv,1.-uv); float e=min(d.x,d.y);
     float aaQ=clamp(e/max(fwidth(e),1e-5)+.5,0.,1.);
@@ -527,16 +531,23 @@ function initGL(){
   prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
   const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
   const loc=gl.getAttribLocation(prog,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
-  ['uPhoto','uFloor','uMask','uUseMask','uHinv','uRoom','uAngle','uTexScale','uLight','uAvgLum','uSplit','uBright','uBlur'].forEach(n=>uni[n]=gl.getUniformLocation(prog,n));
-  gl.uniform1i(uni.uPhoto,0);gl.uniform1i(uni.uFloor,1);gl.uniform1i(uni.uMask,2);
+  ['uPhoto','uFloor','uMask','uLM','uUseLM','uUseMask','uHinv','uRoom','uAngle','uTexScale','uLight','uAvgLum','uSplit','uBright','uBlur'].forEach(n=>uni[n]=gl.getUniformLocation(prog,n));
+  gl.uniform1i(uni.uPhoto,0);gl.uniform1i(uni.uFloor,1);gl.uniform1i(uni.uMask,2);gl.uniform1i(uni.uLM,3);
   aniso=gl.getExtension('EXT_texture_filter_anisotropic');
-  texPhoto=gl.createTexture();texFloor=gl.createTexture();texMask=gl.createTexture();uploadMask(null);
+  texPhoto=gl.createTexture();texFloor=gl.createTexture();texMask=gl.createTexture();texLM=gl.createTexture();uploadMask(null);uploadLM(null);
   return true;
 }
 function uploadPhoto(cv){
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texPhoto);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+}
+function uploadLM(cv){
+  gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,texLM);
+  if(cv)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cv);
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([128,128,0,255]));
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 }
 function uploadMask(cv){
@@ -571,9 +582,9 @@ let raf=0;function render(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;d
 function draw(){
   if(!gl||!state.photo)return;gl.viewport(0,0,glc.width,glc.height);
   gl.uniformMatrix3fv(uni.uHinv,true,new Float32Array(inv3(homography(state.quad))));
-  const k=(state.sc||1)*(state.isDemo?1:5);gl.uniform2f(uni.uRoom,state.W/k,state.D/k);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
+  const k=(state.sc||1);gl.uniform2f(uni.uRoom,state.W/k,state.D/k);gl.uniform1f(uni.uAngle,state.angle*Math.PI/180);
   gl.uniform1f(uni.uTexScale,1/periodOf(state.product));gl.uniform1f(uni.uLight,state.light);
-  gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
+  gl.uniform1f(uni.uAvgLum,state.avgLum);gl.uniform1f(uni.uUseMask,state.useMask&&state.mask?1:0);gl.uniform1f(uni.uUseLM,state.useMask&&state.lm?1:0);gl.uniform1f(uni.uSplit,state.split);gl.uniform1f(uni.uBright,state.bright);
   gl.uniform1f(uni.uBlur,Math.log2(Math.max(glc.width,glc.height))-4.5);
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
 }
@@ -634,14 +645,16 @@ function detectFloor(cv){
 }
 // Reale Masse aus Foto schätzen (Handykamera ~1.5 m Höhe, typischer Bildwinkel)
 function estimateDims(q,cv){
-  const Wi=cv.width,Hi=cv.height,bw=Math.max(.05,q[2][0]-q[3][0]),tw=Math.max(.02,q[1][0]-q[0][0]);
-  const base=Wi>Hi?2.2:1.6;                       // Bodenbreite am unteren Bildrand in m
-  const W=Math.min(8,Math.max(.8,bw*base));
-  const ratio=bw/tw, hpx=(1-Math.min(q[0][1],q[1][1]))*Hi, bpx=bw*Wi;
-  const h=1.4,sn=Math.max(h+.05,W/.93),sf=sn*ratio;
-  let D=Math.max(Math.sqrt(sf*sf-h*h)-Math.sqrt(sn*sn-h*h), W*hpx/bpx);
-  D=Math.min(9,Math.max(.8,D));
-  return [Math.round(W*10)/10,Math.round(D*10)/10];
+  // Lochkamera: Telefon ~1.45 m über dem Boden, Horizont = Fluchtpunkt der Seitenkanten
+  const asp=cv.width/cv.height, f=cv.width<cv.height?.72:1.07, h=1.45;
+  const yt=Math.min(q[0][1],q[1][1]), bw=Math.max(.05,q[2][0]-q[3][0]);
+  const P=a=>[a[0]*asp,a[1]];const A=P(q[3]),B=P(q[0]),C=P(q[2]),D_=P(q[1]);
+  const d1=[B[0]-A[0],B[1]-A[1]],d2=[D_[0]-C[0],D_[1]-C[1]];const den=d1[0]*d2[1]-d1[1]*d2[0];
+  let yh=yt-2.5;
+  if(Math.abs(den)>1e-6){const t=((C[0]-A[0])*d2[1]-(C[1]-A[1])*d2[0])/den;const y=A[1]+t*d1[1];if(isFinite(y)&&y<yt-.03)yh=Math.max(y,yt-6)}
+  const W=bw*asp*h/(1-yh), Zb=h*f/(1-yh), Zt=h*f/(yt-yh);
+  const D=Zt-Zb;
+  return [Math.round(Math.min(10,Math.max(.4,W))*100)/100,Math.round(Math.min(12,Math.max(.4,D))*100)/100];
 }
 function applyDetection(keepQuad){
   if(state.isDemo||!state.photo){state.useMask=false;state.mask=null;uploadMask(null);return false}
@@ -719,7 +732,9 @@ function quadFromMask(keep,w,h,cv){
   if(left&&right){const x=(right.c-left.c)/(left.m-right.m);vp=[x,left.m*x+left.c];if(vp[0]<.15||vp[0]>.85)vp=null}
   else if(left||right){const l=left||right;vp=[.5,l.m*.5+l.c]}
   const baseY=back?back.m*.5+back.c:yTop;
-  if(!vp||vp[1]>baseY-.04||vp[1]<-3){vp=[.5,back?baseY-.32*(1-baseY)*1.6:-1.2]}
+  // ohne sichere Kanten: Horizont aus Lage des Bodens schätzen (Boden nur unten = Blick nach vorne, Boden füllt Bild = Blick nach unten)
+  const gapH=baseY>.5?.16:.16+(.5-baseY)*4;
+  if(!vp||vp[1]>baseY-.04||vp[1]<-3){vp=[.5,Math.min(baseY-gapH,baseY>.5?.45:9)]}
   if(vp[1]>baseY-.04)vp[1]=baseY-.1;
   // Seitenlinien vom Fluchtpunkt zu den unteren Ecken (etwas ausserhalb des Bildes)
   const bl=[-.15,1],br=[1.15,1];
@@ -730,6 +745,39 @@ function quadFromMask(keep,w,h,cv){
   if(!(tr[0]-tl[0]>.03))return null;
   return [tl,tr,br,bl];
 }
+
+// Maske kantengenau hochrechnen (joint bilateral upsampling am Foto)
+function refineMask(prob,keep,w,h,cv){
+  const sc=Math.min(1,640/Math.max(cv.width,cv.height));const W=Math.round(cv.width*sc),H=Math.round(cv.height*sc);
+  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(cv,0,0,W,H);const px=x.getImageData(0,0,W,H).data;
+  const g=document.createElement('canvas');g.width=w;g.height=h;const gx=g.getContext('2d');gx.drawImage(cv,0,0,w,h);const gp=gx.getImageData(0,0,w,h).data;
+  const out=new Float32Array(W*H);const sx=w/W,sy=h/H;
+  for(let y=0;y<H;y++)for(let X=0;X<W;X++){
+    const fx=(X+.5)*sx-.5,fy=(y+.5)*sy-.5,x0=Math.floor(fx),y0=Math.floor(fy);const i=(y*W+X)*4,r=px[i],gg=px[i+1],b=px[i+2];
+    let ws=0,vs=0;
+    for(let dy=-1;dy<=2;dy++)for(let dx=-1;dx<=2;dx++){const xx=Math.min(w-1,Math.max(0,x0+dx)),yy=Math.min(h-1,Math.max(0,y0+dy));const j=yy*w+xx;
+      const ddx=fx-xx,ddy=fy-yy;const sp=Math.exp(-(ddx*ddx+ddy*ddy)/1.2);
+      const dr=gp[j*4]-r,dg=gp[j*4+1]-gg,db=gp[j*4+2]-b;const cw=Math.exp(-(dr*dr+dg*dg+db*db)/(2*22*22));
+      const wt=sp*cw+1e-6;ws+=wt;vs+=wt*(keep[j]?prob[j]:0)}
+    out[y*W+X]=vs/ws}
+  return {m:out,W,H,px};
+}
+// Lichtkarte nur aus Bodenpixeln + Kontaktschatten
+function buildLightMap(R){
+  const {m,W,H,px}=R;const N=W*H;const L=new Float32Array(N),M=new Float32Array(N);
+  for(let i=0;i<N;i++){const k=m[i]>.5?1:0;M[i]=k;L[i]=k*(px[i*4]*.299+px[i*4+1]*.587+px[i*4+2]*.114)/255}
+  const blur=(a,r)=>{const t=new Float32Array(N),o=new Float32Array(N);
+    for(let y=0;y<H;y++){let s=0;const row=y*W;for(let x=-r;x<W;x++){if(x+r<W)s+=a[row+x+r];if(x-r-1>=0)s-=a[row+x-r-1];if(x>=0)t[row+x]=s}}
+    for(let x=0;x<W;x++){let s=0;for(let y=-r;y<H;y++){if(y+r<H)s+=t[(y+r)*W+x];if(y-r-1>=0)s-=t[(y-r-1)*W+x];if(y>=0)o[y*W+x]=s}}return o};
+  const r=Math.max(3,Math.round(Math.max(W,H)/45));let Lb=blur(blur(L,r),r),Mb=blur(blur(M,r),r);
+  const vals=[];for(let i=0;i<N;i+=7)if(M[i])vals.push(L[i]);vals.sort((a,b)=>a-b);const med=vals[vals.length>>1]||.5;
+  const ra=Math.max(2,Math.round(Math.max(W,H)/90));const Ab=blur(blur(M,ra),ra);
+  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');const id=x.createImageData(W,H);
+  for(let i=0;i<N;i++){const l=Mb[i]>1e-3?Lb[i]/Mb[i]:med;const sh=Math.min(1.45,Math.max(.4,l/med));
+    const occ=Math.min(1,(Ab[i]/((2*ra+1)**2*1))*1.0); const aoV=.84+.16*Math.pow(occ,.8);
+    id.data[i*4]=Math.round(sh*127.5);id.data[i*4+1]=Math.round(Math.min(1,aoV)*127.5);id.data[i*4+2]=0;id.data[i*4+3]=255}
+  x.putImageData(id,0,0);return c;
+}
 async function applyAI(){
   if(state.isDemo||!state.photo)return false;
   const ph=state.photo;let r;
@@ -737,7 +785,12 @@ async function applyAI(){
   if(state.photo!==ph)return false;
   const m=maskFromProb(r,ph);if(!m)return false;
   const q=quadFromMask(m.keep,m.w,m.h,ph);
+  // kantengenaue Maske + Lichtkarte
+  try{const R=refineMask(r.prob,m.keep,m.w,m.h,ph);const mc=document.createElement('canvas');mc.width=R.W;mc.height=R.H;const mx=mc.getContext('2d');const id=mx.createImageData(R.W,R.H);
+    for(let i=0;i<R.W*R.H;i++){const v=Math.round(Math.min(1,Math.max(0,(R.m[i]-.5)*2.2+.5))*255);id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=v;id.data[i*4+3]=255}
+    mx.putImageData(id,0,0);m.mask=mc;state.lm=buildLightMap(R);uploadLM(state.lm)}catch(e){console.warn(e);state.lm=null;uploadLM(null)}
   state.mask=m.mask;uploadMask(m.mask);state.useMask=state.autoDetect;
+  state.angle=90;if($('#ang'))setAngle(90);
   if(q){state.quad=q;const d=estimateDims(q,ph);state.W=d[0];state.D=d[1];$('#w').value=d[0];$('#d').value=d[1]}
   computeAvgLum();placeHandles();render();return true;
 }
@@ -753,7 +806,7 @@ window.addEventListener('resize',()=>{layoutStage();render()});
 function showHint(t,ms){const h=$('#hint');h.textContent=t;h.style.opacity=1;clearTimeout(showHint._t);showHint._t=setTimeout(()=>h.style.opacity=0,ms||3000)}
 
 /* ============ Foto ============ */
-function setPhoto(cv,quad,dims){
+function setPhoto(cv,quad,dims){state.lm=null;if(gl)uploadLM(null);
   state.photo=cv;glc.width=cv.width;glc.height=cv.height;uploadPhoto(cv);prepLum(cv);
   state.quad=quad.map(p=>p.slice());if(dims){state.W=dims[0];state.D=dims[1];$('#w').value=dims[0];$('#d').value=dims[1]}
   computeAvgLum();placeHandles();
